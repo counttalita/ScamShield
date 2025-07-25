@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/call_service.dart';
 import '../services/api_service.dart';
 import '../services/app_info_service.dart';
 import '../services/contacts_service.dart';
+import '../services/subscription_service.dart';
 import '../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -492,38 +494,364 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _showSubscriptionDialog() async {
+    final subscriptionService = SubscriptionService.instance;
+    final details = await subscriptionService.getSubscriptionDetails();
+    final status = details['status'] as String;
+    final hasPremium = details['has_premium'] as bool;
+    final trialDaysRemaining = details['trial_days_remaining'] as int;
+    
     return showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Subscription'),
-            content: const Text(
-              'ScamShield Premium provides unlimited spam call protection for \$2/month.\n\n'
-              'Features:\n'
-              '• Real-time spam detection\n'
-              '• Automatic call blocking\n'
-              '• Call history and statistics\n'
-              '• Priority support',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.shield, color: Colors.blue[700]),
+            const SizedBox(width: 8),
+            const Text('ScamShield Premium'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Subscription Status
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _getStatusColor(status).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _getStatusColor(status).withOpacity(0.3)),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // TODO: Implement subscription flow
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Subscription management coming soon!'),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(status),
+                      shape: BoxShape.circle,
                     ),
-                  );
-                },
-                child: const Text('Subscribe'),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _getStatusText(status, trialDaysRemaining),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: _getStatusColor(status),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
+            const SizedBox(height: 16),
+            // Pricing
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue[700]!, Colors.blue[900]!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        subscriptionService.formattedPrice,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const Text(
+                        '/month',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${subscriptionService.trialPeriodText} FREE TRIAL',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Features
+            const Text(
+              'Premium Features:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildFeatureItem('Real-time spam detection'),
+            _buildFeatureItem('Automatic call blocking'),
+            _buildFeatureItem('Call history and statistics'),
+            _buildFeatureItem('Priority support'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
           ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _handleSubscriptionAction(status, hasPremium);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _getActionButtonColor(status),
+            ),
+            child: Text(_getActionButtonText(status, hasPremium)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureItem(String feature) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(Icons.check, color: Colors.green, size: 16),
+          const SizedBox(width: 8),
+          Text(feature, style: const TextStyle(fontSize: 14)),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'active':
+        return Colors.green;
+      case 'trial':
+        return Colors.orange;
+      case 'expired':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String status, int trialDaysRemaining) {
+    switch (status) {
+      case 'active':
+        return 'Premium Active';
+      case 'trial':
+        return 'Trial: $trialDaysRemaining days left';
+      case 'expired':
+        return 'Trial Expired';
+      default:
+        return 'No Subscription';
+    }
+  }
+
+  Color _getActionButtonColor(String status) {
+    switch (status) {
+      case 'active':
+        return Colors.grey;
+      case 'trial':
+        return Colors.green;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  String _getActionButtonText(String status, bool hasPremium) {
+    switch (status) {
+      case 'active':
+        return 'Manage';
+      case 'trial':
+        return 'Upgrade Now';
+      case 'expired':
+        return 'Subscribe';
+      default:
+        return hasPremium ? 'Subscribe' : 'Start Free Trial';
+    }
+  }
+
+  Future<void> _handleSubscriptionAction(String status, bool hasPremium) async {
+    final subscriptionService = SubscriptionService.instance;
+    
+    if (status == 'active') {
+      _showManageSubscriptionDialog();
+    } else if (status == 'none' && !hasPremium) {
+      await _startFreeTrial();
+    } else {
+      await _showPaymentDialog();
+    }
+  }
+
+  Future<void> _startFreeTrial() async {
+    final subscriptionService = SubscriptionService.instance;
+    
+    try {
+      final success = await subscriptionService.startFreeTrial();
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Free trial started! Enjoy 30 days of premium protection.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        _showErrorSnackBar('Failed to start trial. Please try again.');
+      }
+    } catch (e) {
+      _showErrorSnackBar('An error occurred. Please try again.');
+    }
+  }
+
+  Future<void> _showPaymentDialog() async {
+    final emailController = TextEditingController();
+    
+    final email = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Subscribe to Premium'),
+        content: TextField(
+          controller: emailController,
+          decoration: const InputDecoration(
+            labelText: 'Email Address',
+            hintText: 'your@email.com',
+          ),
+          keyboardType: TextInputType.emailAddress,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, emailController.text),
+            child: const Text('Continue to Payment'),
+          ),
+        ],
+      ),
+    );
+
+    if (email != null && email.isNotEmpty) {
+      await _processPayment(email);
+    }
+  }
+
+  Future<void> _processPayment(String email) async {
+    final subscriptionService = SubscriptionService.instance;
+    
+    try {
+      final success = await subscriptionService.initializePayment(
+        email: email,
+        context: context,
+      );
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Payment successful! Welcome to ScamShield Premium!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        _showErrorSnackBar('Payment failed. Please try again.');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Payment error. Please try again.');
+    }
+  }
+
+  void _showManageSubscriptionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Manage Subscription'),
+        content: const Text(
+          'Your premium subscription is active. You can manage your subscription through your Paystack dashboard or contact support.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showCancelSubscriptionDialog();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Cancel Subscription'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCancelSubscriptionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Subscription'),
+        content: const Text(
+          'Are you sure you want to cancel your premium subscription? You will lose access to premium features.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Keep Subscription'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final subscriptionService = SubscriptionService.instance;
+              await subscriptionService.cancelSubscription();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Subscription cancelled successfully.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Cancel Subscription'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
     );
   }
 }
