@@ -137,10 +137,13 @@ class _BiometricLoginScreenState extends State<BiometricLoginScreen> {
               const SizedBox(height: 80),
               
               // Logo
-              const Icon(
-                Icons.shield_outlined,
-                size: 80,
-                color: Colors.blue,
+              Center(
+                child: Image.asset(
+                  'assets/images/ScamShield.png',
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 24),
               

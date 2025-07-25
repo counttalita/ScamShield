@@ -5,7 +5,7 @@ import 'services/auth_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/auth/phone_input_screen.dart';
-import 'screens/auth/biometric_login_screen.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,11 +52,86 @@ class ScamShieldApp extends StatelessWidget {
           elevation: 2,
         ),
       ),
-      home: const MainScreen(),
+      home: const AuthWrapper(),
       routes: {
         '/settings': (context) => const SettingsScreen(),
       },
     );
+  }
+}
+
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isLoading = true;
+  bool _isAuthenticated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthStatus();
+  }
+
+  Future<void> _checkAuthStatus() async {
+    try {
+      final isLoggedIn = await AuthService.isAuthenticated();
+      
+      setState(() {
+        _isAuthenticated = isLoggedIn;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isAuthenticated = false;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // ScamShield Logo
+              Center(
+                child: Image.asset(
+                  'assets/images/ScamShield.png',
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text(
+                'Loading ScamShield...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Route to appropriate screen based on authentication status
+    if (_isAuthenticated) {
+      return const MainScreen();
+    } else {
+      return const PhoneInputScreen();
+    }
   }
 }
 

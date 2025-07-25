@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_paystack/flutter_paystack.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 class SubscriptionService {
   static final SubscriptionService _instance = SubscriptionService._internal();
@@ -20,17 +20,7 @@ class SubscriptionService {
   static const int _monthlyAmountZAR = 3500; // ZAR 35.00 in kobo/cents
   static const int _trialDays = 30;
 
-  late PaystackPlugin _paystack;
-  bool _isInitialized = false;
 
-  // Initialize Paystack
-  Future<void> initialize() async {
-    if (_isInitialized) return;
-    
-    _paystack = PaystackPlugin();
-    await _paystack.initialize(publicKey: _publicKey);
-    _isInitialized = true;
-  }
 
   // Check if user is on trial
   Future<bool> isOnTrial() async {
@@ -95,54 +85,72 @@ class SubscriptionService {
     return status;
   }
 
-  // Initialize payment for subscription
+  // Initialize payment with Paystack (HTTP-based)
   Future<bool> initializePayment({
     required String email,
     required BuildContext context,
   }) async {
-    if (!_isInitialized) await initialize();
-
     try {
-      final charge = Charge()
-        ..amount = _monthlyAmountZAR
-        ..currency = 'ZAR'
-        ..reference = _generateReference()
-        ..email = email
-        ..plan = _planCode;
-
-      final response = await _paystack.checkout(
-        context,
-        method: CheckoutMethod.card,
-        charge: charge,
+      // Create payment initialization request
+      final response = await http.post(
+        Uri.parse('https://api.paystack.co/transaction/initialize'),
+        headers: {
+          'Authorization': 'Bearer $_secretKey',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'email': email,
+          'amount': _monthlyAmountZAR,
+          'currency': 'ZAR',
+          'plan': _planCode,
+          'reference': 'scamshield_${DateTime.now().millisecondsSinceEpoch}',
+          'callback_url': 'https://scamshield.app/payment/callback',
+          'metadata': {
+            'subscription_type': 'premium',
+            'trial_converted': true,
+          },
+        }),
       );
 
-      if (response.status) {
-        await _handleSuccessfulPayment(response);
-        return true;
-      } else {
-        debugPrint('Payment failed: ${response.message}');
-        return false;
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['status'] == true) {
+          final authorizationUrl = data['data']['authorization_url'] as String;
+          final reference = data['data']['reference'] as String;
+          
+          // Launch payment URL in browser
+          final uri = Uri.parse(authorizationUrl);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+            
+            // Store payment reference for verification
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('pending_payment_reference', reference);
+            
+            // Show success message (payment verification will happen separately)
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Payment initiated! Complete payment in your browser.'),
+                  backgroundColor: Colors.blue,
+                ),
+              );
+            }
+            
+            return true;
+          }
+        }
       }
+      
+      return false;
     } catch (e) {
-      debugPrint('Payment error: $e');
+      print('Payment initialization error: $e');
       return false;
     }
   }
 
-  // Handle successful payment
-  Future<void> _handleSuccessfulPayment(CheckoutResponse response) async {
-    final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    
-    await prefs.setString('subscription_status', 'active');
-    await prefs.setString('subscription_start_date', now.toIso8601String());
-    await prefs.setString('subscription_reference', response.reference ?? '');
-    await prefs.setString('subscription_plan_code', _planCode);
-    await prefs.setInt('subscription_amount', _monthlyAmountZAR);
-    
-    // Clear trial data since user is now subscribed
-    await prefs.remove('trial_start_date');
-  }
+
 
   // Get subscription details
   Future<Map<String, dynamic>> getSubscriptionDetails() async {
@@ -162,11 +170,7 @@ class SubscriptionService {
     };
   }
 
-  // Generate unique payment reference
-  String _generateReference() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return 'scamshield_$timestamp';
-  }
+
 
   // Check if user has started trial before
   Future<bool> hasStartedTrialBefore() async {
@@ -192,6 +196,162 @@ class SubscriptionService {
     await prefs.setString('subscription_status', 'cancelled');
     await prefs.setString('subscription_cancelled_date', DateTime.now().toIso8601String());
     
+    // Sync cancellation with backend
+    await _syncSubscriptionToBackend('cancelled');
+    
     return true;
+  }
+
+  // Sync subscription status to backend database
+  Future<bool> _syncSubscriptionToBackend(String status) async {
+    try {
+      final token = await _getAuthToken();
+      if (token == null) {
+        print('No auth token available for subscription sync');
+        return false;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final response = await http.post(
+        Uri.parse('http://localhost:3000/api/subscription/sync'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'status': status,
+          'plan_code': _planCode,
+          'amount': _monthlyAmountZAR,
+          'currency': 'ZAR',
+          'trial_start_date': prefs.getString('trial_start_date'),
+          'subscription_start_date': prefs.getString('subscription_start_date'),
+          'payment_reference': prefs.getString('pending_payment_reference'),
+          'sync_timestamp': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          // Update local status based on backend response
+          final backendStatus = data['subscription_status'];
+          if (backendStatus != null) {
+            await prefs.setString('subscription_status', backendStatus);
+          }
+          return true;
+        }
+      }
+      
+      print('Failed to sync subscription to backend: ${response.statusCode}');
+      return false;
+    } catch (e) {
+      print('Error syncing subscription to backend: $e');
+      return false;
+    }
+  }
+
+  // Get auth token for backend requests
+  Future<String?> _getAuthToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('auth_token');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Sync subscription status from backend (for feature access control)
+  Future<Map<String, dynamic>> syncFromBackend() async {
+    try {
+      final token = await _getAuthToken();
+      if (token == null) {
+        return {'success': false, 'error': 'No authentication token'};
+      }
+
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/api/subscription/status'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final subscription = data['subscription'];
+          
+          // Update local storage with backend data
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('subscription_status', subscription['status'] ?? 'none');
+          
+          if (subscription['trial_start_date'] != null) {
+            await prefs.setString('trial_start_date', subscription['trial_start_date']);
+          }
+          
+          if (subscription['subscription_start_date'] != null) {
+            await prefs.setString('subscription_start_date', subscription['subscription_start_date']);
+          }
+          
+          return {
+            'success': true,
+            'status': subscription['status'],
+            'has_premium': subscription['has_premium'] ?? false,
+            'features_enabled': subscription['features_enabled'] ?? {},
+          };
+        }
+      }
+      
+      return {'success': false, 'error': 'Failed to fetch from backend'};
+    } catch (e) {
+      return {'success': false, 'error': 'Network error: $e'};
+    }
+  }
+
+  // Check if specific feature is enabled based on subscription
+  Future<bool> isFeatureEnabled(String featureName) async {
+    try {
+      // First sync with backend to get latest status
+      final syncResult = await syncFromBackend();
+      
+      if (syncResult['success'] == true) {
+        final featuresEnabled = syncResult['features_enabled'] as Map<String, dynamic>? ?? {};
+        return featuresEnabled[featureName] == true;
+      }
+      
+      // Fallback to local check if backend sync fails
+      final hasPremium = await hasPremiumSubscription();
+      
+      // Define premium features
+      const premiumFeatures = {
+        'real_time_detection': true,
+        'auto_block': true,
+        'call_statistics': true,
+        'priority_support': true,
+        'advanced_filters': true,
+      };
+      
+      return hasPremium && (premiumFeatures[featureName] == true);
+    } catch (e) {
+      print('Error checking feature access: $e');
+      return false;
+    }
+  }
+
+  // Update subscription status after successful payment
+  Future<void> handleSuccessfulPayment(String paymentReference) async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    
+    await prefs.setString('subscription_status', 'active');
+    await prefs.setString('subscription_start_date', now.toIso8601String());
+    await prefs.setString('payment_reference', paymentReference);
+    await prefs.remove('pending_payment_reference');
+    
+    // Clear trial data since user is now subscribed
+    await prefs.remove('trial_start_date');
+    
+    // Sync with backend
+    await _syncSubscriptionToBackend('active');
   }
 }
