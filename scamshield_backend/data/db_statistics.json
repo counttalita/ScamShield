@@ -1,0 +1,17 @@
+{
+  "totalScamNumbers": 1,
+  "totalUserReports": 0,
+  "riskLevels": {
+    "HIGH": 1,
+    "MEDIUM": 0,
+    "LOW": 0
+  },
+  "sources": {
+    "hiya_api": 0,
+    "user_report": 0,
+    "manual": 0
+  },
+  "autoRejectNumbers": 1,
+  "totalHits": 1,
+  "lastUpdated": "2025-07-25T09:45:33.749Z"
+}

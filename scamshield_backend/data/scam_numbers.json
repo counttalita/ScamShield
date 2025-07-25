@@ -1,0 +1,75 @@
+[
+  {
+    "phoneNumber": "+1666999666",
+    "originalNumber": "+1666999666",
+    "riskLevel": "HIGH",
+    "confidence": "HIGH",
+    "category": "scam",
+    "source": "multi_api",
+    "scamData": {
+      "type": "result",
+      "callScamRisk": "HIGH_SCAM_RISK",
+      "callOriginatorRisk": "HIGH",
+      "scamDialog": {
+        "scamDialogRisk": "SCAM",
+        "confidence": "HIGH"
+      },
+      "multiApiData": {
+        "phoneNumber": "+1666999666",
+        "riskLevel": "HIGH",
+        "confidence": "HIGH",
+        "action": "block",
+        "autoReject": true,
+        "category": "scam",
+        "sources": [
+          "hiya"
+        ],
+        "providerData": [
+          {
+            "provider": "hiya",
+            "phoneNumber": "+1666999666",
+            "riskLevel": "HIGH",
+            "confidence": "HIGH",
+            "action": "block",
+            "autoReject": true,
+            "category": "scam",
+            "score": 0.9,
+            "rawData": {
+              "type": "result",
+              "callScamRisk": "HIGH_SCAM_RISK",
+              "callOriginatorRisk": "HIGH",
+              "scamDialog": {
+                "scamDialogRisk": "SCAM",
+                "confidence": "HIGH"
+              },
+              "syntheticVoice": {
+                "syntheticVoiceDetected": "YES",
+                "score": 0.85
+              }
+            },
+            "features": {
+              "syntheticVoice": true,
+              "syntheticVoiceScore": 0.85,
+              "originatorRisk": "HIGH",
+              "dialogRisk": "SCAM"
+            },
+            "responseTime": 1,
+            "weight": 1
+          }
+        ],
+        "metadata": {
+          "totalProviders": 1,
+          "successfulProviders": 1,
+          "failedProviders": 0,
+          "responseTime": 1,
+          "aggregationStrategy": "highest_risk",
+          "timestamp": "2025-07-25T09:44:51.895Z"
+        }
+      }
+    },
+    "firstSeen": "2025-07-25T09:44:51.895Z",
+    "lastSeen": "2025-07-25T09:44:51.895Z",
+    "hitCount": 0,
+    "autoReject": true
+  }
+]
