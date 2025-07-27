@@ -95,18 +95,50 @@ class ContactsService {
     }
   }
 
+  /// Check if a phone number exists in user's contacts
+  Future<bool> isNumberInContacts(String phoneNumber) async {
+    try {
+      if (!await hasContactsPermission()) {
+        print('📱 No contacts permission - cannot check contacts');
+        return false;
+      }
+      
+      final contacts = await getAllContacts();
+      
+      final normalizedNumber = _normalizePhoneNumber(phoneNumber);
+      
+      for (final contact in contacts) {
+        if (contact.phones != null) {
+          for (final phone in contact.phones!) {
+            final contactNumber = _normalizePhoneNumber(phone.value ?? '');
+            if (contactNumber == normalizedNumber) {
+              print('✅ Found $phoneNumber in contacts: ${contact.displayName}');
+              return true;
+            }
+          }
+        }
+      }
+      
+      print('❌ Number $phoneNumber not found in contacts');
+      return false;
+    } catch (e) {
+      print('❌ Error checking if number is in contacts: $e');
+      return false;
+    }
+  }
+
   /// Get all contacts (cached for performance)
-  Future<List<contacts_service.Contact>?> getContacts() async {
+  Future<List<contacts_service.Contact>> getAllContacts() async {
     // Check permission first
     if (!await hasContactsPermission()) {
-      return null;
+      return [];
     }
 
     // Return cached contacts if still valid
     if (_cachedContacts != null && 
         _lastCacheUpdate != null && 
         DateTime.now().difference(_lastCacheUpdate!) < _cacheValidDuration) {
-      return _cachedContacts;
+      return _cachedContacts!;
     }
 
     try {
@@ -117,39 +149,18 @@ class ContactsService {
       _cachedContacts = contacts.toList();
       _lastCacheUpdate = DateTime.now();
 
-      return _cachedContacts;
+      return _cachedContacts!;
     } catch (e) {
       print('Error fetching contacts: $e');
-      return null;
+      return [];
     }
   }
 
-  /// Check if a phone number exists in contacts
-  Future<bool> isNumberInContacts(String phoneNumber) async {
-    final contacts = await getContacts();
-    if (contacts == null) return false;
 
-    // Normalize the phone number for comparison
-    final normalizedNumber = _normalizePhoneNumber(phoneNumber);
-    
-    for (final contact in contacts) {
-      if (contact.phones != null) {
-        for (final phone in contact.phones!) {
-          final contactNumber = _normalizePhoneNumber(phone.value ?? '');
-          if (contactNumber == normalizedNumber) {
-            return true;
-          }
-        }
-      }
-    }
-    
-    return false;
-  }
 
   /// Get contact name for a phone number
   Future<String?> getContactName(String phoneNumber) async {
-    final contacts = await getContacts();
-    if (contacts == null) return null;
+    final contacts = await getAllContacts();
 
     // Normalize the phone number for comparison
     final normalizedNumber = _normalizePhoneNumber(phoneNumber);
@@ -190,8 +201,8 @@ class ContactsService {
 
   /// Get contacts statistics
   Future<Map<String, int>> getContactsStats() async {
-    final contacts = await getContacts();
-    if (contacts == null) {
+    final contacts = await getAllContacts();
+    if (contacts.isEmpty) {
       return {
         'totalContacts': 0,
         'contactsWithPhones': 0,

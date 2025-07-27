@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+import 'database_service.dart';
+import 'contacts_service.dart';
 
 class CallService {
   static const MethodChannel _channel = MethodChannel('scamshield/call_blocker');
@@ -50,12 +52,134 @@ class CallService {
         return;
       }
 
-      // Check with backend API
-      final result = await ApiService.checkCall(phoneNumber);
+      // STEP 1: Check local database cache first (fastest)
+      print('🔍 Checking local database cache for $phoneNumber');
+      final cacheResult = await DatabaseService.instance.checkScamNumber(phoneNumber);
       
-      print('🔍 API result for $phoneNumber: ${result.action} (score: ${result.score})');
-      print('🎯 Risk level: ${result.riskLevel}, Auto-reject: ${result.autoReject}');
+      CallCheckResult? finalResult;
       
+      if (cacheResult.source != 'cache_miss' && cacheResult.source != 'error') {
+        // Found in cache - use cached result
+        print('💾 Cache HIT for $phoneNumber: ${cacheResult.riskLevel} (confidence: ${cacheResult.confidence})');
+        finalResult = _convertScamResultToCallResult(cacheResult);
+      } else {
+        // STEP 2: Check if number is in contacts (whitelist)
+        print('📱 Checking contacts for $phoneNumber');
+        final isContact = await _isInContacts(phoneNumber);
+        
+        if (isContact) {
+          print('👤 Number is in contacts - allowing call');
+          await DatabaseService.instance.addToWhitelist(phoneNumber, 'contacts');
+          finalResult = CallCheckResult(
+            action: 'allow',
+            autoReject: false,
+            riskLevel: 'LOW',
+            confidence: 'HIGH',
+            score: 0,
+          );
+        } else {
+          // STEP 3: Check with backend API (slowest but most comprehensive)
+          print('🌐 Checking with backend API for $phoneNumber');
+          finalResult = await ApiService.checkCall(phoneNumber);
+          
+          // Cache the API result for future use
+          await _cacheApiResult(phoneNumber, finalResult);
+        }
+      }
+      
+      print('🔍 Final result for $phoneNumber: ${finalResult.action} (score: ${finalResult.score})');
+      print('🎯 Risk level: ${finalResult.riskLevel}, Auto-reject: ${finalResult.autoReject}');
+      
+      // STEP 4: Take action based on risk assessment
+      await _takeCallAction(phoneNumber, finalResult, silenceUnknownNumbers);
+      
+      // Log the call for statistics
+      await _logCall(phoneNumber, finalResult);
+      
+    } catch (e) {
+      print('❌ Error handling incoming call: $e');
+      // In case of error, allow the call for safety
+    }
+  }
+
+  /// Convert ScamCheckResult to CallCheckResult
+  static CallCheckResult _convertScamResultToCallResult(ScamCheckResult scamResult) {
+    return CallCheckResult(
+      action: scamResult.shouldAutoReject ? 'auto_reject' : 
+              scamResult.shouldBlock ? 'block' : 'allow',
+      autoReject: scamResult.shouldAutoReject,
+      riskLevel: scamResult.riskLevel.toUpperCase(),
+      confidence: scamResult.confidence > 0.8 ? 'HIGH' : 
+                  scamResult.confidence > 0.5 ? 'MEDIUM' : 'LOW',
+      score: (scamResult.confidence * 100).round(),
+      category: scamResult.isScam ? 'SCAM' : scamResult.isSpam ? 'SPAM' : 'UNKNOWN',
+      description: 'Cached result from ${scamResult.source}',
+    );
+  }
+
+  /// Check if phone number is in user's contacts
+  static Future<bool> _isInContacts(String phoneNumber) async {
+    try {
+      final contactsService = ContactsService.instance;
+      final hasPermission = await contactsService.hasContactsPermission();
+      
+      if (!hasPermission) {
+        print('📱 No contacts permission - cannot check contacts');
+        return false;
+      }
+      
+      return await contactsService.isNumberInContacts(phoneNumber);
+    } catch (e) {
+      print('❌ Error checking contacts: $e');
+      return false;
+    }
+  }
+
+  /// Cache API result in local database
+  static Future<void> _cacheApiResult(String phoneNumber, CallCheckResult result) async {
+    try {
+      final dbService = DatabaseService.instance;
+      
+      // Convert confidence string to double for database storage
+      double confidenceValue = result.confidence == 'HIGH' ? 0.9 : 
+                              result.confidence == 'MEDIUM' ? 0.6 : 0.3;
+      
+      if (result.shouldBlock || result.autoReject) {
+        await dbService.addScamNumber(
+          phoneNumber,
+          riskLevel: result.riskLevel.toLowerCase(),
+          confidence: confidenceValue,
+          source: 'api_backend',
+          metadata: {
+            'action': result.action,
+            'score': result.score ?? 0,
+            'category': result.category ?? 'unknown',
+            'description': result.description ?? '',
+            'cached_at': DateTime.now().toIso8601String(),
+          },
+        );
+      } else if (result.category == 'SPAM' || result.action.contains('spam')) {
+        await dbService.addSpamNumber(
+          phoneNumber,
+          source: 'api_backend',
+          metadata: {
+            'score': result.score ?? 0,
+            'confidence_level': result.confidence,
+            'category': result.category ?? 'spam',
+            'cached_at': DateTime.now().toIso8601String(),
+          },
+        );
+      }
+      
+      print('💾 Cached API result for $phoneNumber');
+    } catch (e) {
+      print('❌ Error caching API result: $e');
+    }
+  }
+
+  /// Take appropriate action based on call risk assessment
+  static Future<void> _takeCallAction(String phoneNumber, CallCheckResult result, bool silenceUnknownNumbers) async {
+    try {
       if (result.shouldBlock || result.autoReject) {
         // Handle confirmed spam/scam calls - BLOCK them
         if (result.autoReject) {
@@ -72,13 +196,8 @@ class CallService {
       } else {
         print('✅ Call allowed from $phoneNumber');
       }
-      
-      // Log the call for statistics
-      await _logCall(phoneNumber, result);
-      
     } catch (e) {
-      print('❌ Error handling incoming call: $e');
-      // In case of error, allow the call for safety
+      print('❌ Error taking call action: $e');
     }
   }
 

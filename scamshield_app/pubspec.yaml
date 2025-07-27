@@ -50,6 +50,9 @@ dependencies:
   # Payment dependencies
   # flutter_paystack: ^1.0.7  # Removed due to Material 3 compatibility issues
   url_launcher: ^6.2.1  # For opening Paystack payment URLs
+  # Audio streaming dependencies
+  web_socket_channel: ^2.4.0  # For real-time WebSocket communication
+  record: ^5.0.4  # For audio recording and streaming
 
 dev_dependencies:
   flutter_test:
