@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
-import 'package:record/record.dart';
+import 'package:flutter_sound/flutter_sound.dart';
 
 /// Service for streaming call audio to backend for real-time scam detection
 class AudioStreamingService {
@@ -20,9 +20,10 @@ class AudioStreamingService {
   WebSocketChannel? _wsChannel;
   
   // Audio recording
-  final AudioRecorder _audioRecorder = AudioRecorder();
+  final FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder();
   bool _isRecording = false;
   bool _isStreaming = false;
+  bool _isRecorderInitialized = false;
   
   // Stream controllers for real-time updates
   final StreamController<ScamAnalysisResult> _analysisController = 
@@ -56,12 +57,10 @@ class AudioStreamingService {
         }
       }
 
-      // Check if recording is available
-      final isAvailable = await _audioRecorder.hasPermission();
-      if (!isAvailable) {
-        print('🎤 Audio recording not available');
-        _statusController.add(AudioStreamStatus.notAvailable);
-        return false;
+      // Initialize the recorder
+      if (!_isRecorderInitialized) {
+        await _audioRecorder.openRecorder();
+        _isRecorderInitialized = true;
       }
 
       print('🎤 Audio streaming service initialized');
@@ -190,33 +189,29 @@ class AudioStreamingService {
   /// Start audio capture and streaming
   Future<bool> _startAudioCapture() async {
     try {
-      // Configure recording settings for streaming
-      const config = RecordConfig(
-        encoder: AudioEncoder.pcm16bits,
+      // Ensure recorder is initialized
+      if (!_isRecorderInitialized) {
+        await initialize();
+      }
+
+      // Start recording to a temporary file
+      // In a production app, you would implement real-time streaming
+      final tempPath = '/tmp/scamshield_audio_${DateTime.now().millisecondsSinceEpoch}.wav';
+      
+      await _audioRecorder.startRecorder(
+        toFile: tempPath,
+        codec: Codec.pcm16WAV,
         sampleRate: _sampleRate,
         numChannels: 1,
-        autoGain: true,
-        echoCancel: true,
-        noiseSuppress: true,
       );
+      
+      _isRecording = true;
 
-      // Check if we can record to stream
-      if (await _audioRecorder.hasPermission()) {
-        // Start recording to a temporary file (required by the record package)
-        // In a production app, you would use a streaming audio library instead
-        final tempPath = '/tmp/scamshield_audio_${DateTime.now().millisecondsSinceEpoch}.wav';
-        await _audioRecorder.start(config, path: tempPath);
-        _isRecording = true;
-
-        // Start streaming audio data
-        _streamAudioData();
-        
-        print('🎤 Started audio capture');
-        return true;
-      } else {
-        print('❌ No audio recording permission');
-        return false;
-      }
+      // Start streaming audio data
+      _streamAudioData();
+      
+      print('🎤 Started audio capture');
+      return true;
     } catch (e) {
       print('❌ Error starting audio capture: $e');
       return false;
@@ -227,9 +222,9 @@ class AudioStreamingService {
   Future<void> _stopAudioCapture() async {
     try {
       if (_isRecording) {
-        await _audioRecorder.stop();
+        await _audioRecorder.stopRecorder();
         _isRecording = false;
-        print('🛑 Stopped audio capture');
+        print('🛡️ Stopped audio capture');
       }
     } catch (e) {
       print('❌ Error stopping audio capture: $e');
@@ -298,7 +293,10 @@ class AudioStreamingService {
     stopStreaming();
     _analysisController.close();
     _statusController.close();
-    _audioRecorder.dispose();
+    if (_isRecorderInitialized) {
+      _audioRecorder.closeRecorder();
+      _isRecorderInitialized = false;
+    }
   }
 }
 

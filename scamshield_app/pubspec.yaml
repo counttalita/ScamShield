@@ -52,7 +52,7 @@ dependencies:
   url_launcher: ^6.2.1  # For opening Paystack payment URLs
   # Audio streaming dependencies
   web_socket_channel: ^2.4.0  # For real-time WebSocket communication
-  record: ^5.0.4  # For audio recording and streaming
+  flutter_sound: ^9.2.13  # For audio recording and streaming (iOS/Android compatible)
 
 dev_dependencies:
   flutter_test:
