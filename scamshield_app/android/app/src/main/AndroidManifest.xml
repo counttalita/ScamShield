@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Contacts permission for silencing unknown numbers -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
     <application
         android:label="scamshield_app"
         android:name="${applicationName}"

@@ -45,5 +45,8 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Contacts permission for silencing unknown numbers -->
+	<key>NSContactsUsageDescription</key>
+	<string>ScamShield needs access to your contacts to determine which numbers are known to you, so we can silence calls from unknown numbers while allowing calls from your contacts to ring normally. Your contact information stays on your device and is never sent to our servers.</string>
 </dict>
 </plist>

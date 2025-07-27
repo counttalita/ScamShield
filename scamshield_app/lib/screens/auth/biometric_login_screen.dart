@@ -26,17 +26,21 @@ class _BiometricLoginScreenState extends State<BiometricLoginScreen> {
   Future<void> _checkBiometrics() async {
     try {
       final biometrics = await _authService.getAvailableBiometrics();
-      setState(() {
-        _availableBiometrics = biometrics;
-        _isLoading = false;
-      });
-      
-      // Auto-trigger biometric authentication
-      _authenticateWithBiometric();
+      if (mounted) {
+        setState(() {
+          _availableBiometrics = biometrics;
+          _isLoading = false;
+        });
+        
+        // Auto-trigger biometric authentication
+        _authenticateWithBiometric();
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:contacts_service/contacts_service.dart' as contacts_service;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/foundation.dart';
 
 class ContactsService {
   static ContactsService? _instance;
@@ -12,14 +14,85 @@ class ContactsService {
 
   /// Check if contacts permission is granted
   Future<bool> hasContactsPermission() async {
-    final status = await Permission.contacts.status;
-    return status == PermissionStatus.granted;
+    try {
+      final status = await Permission.contacts.status;
+      print('📱 Contacts permission status: $status');
+      return status == PermissionStatus.granted;
+    } catch (e) {
+      print('❌ Error checking contacts permission: $e');
+      return false;
+    }
   }
 
-  /// Request contacts permission
+  /// Request contacts permission with platform-specific handling
   Future<bool> requestContactsPermission() async {
-    final status = await Permission.contacts.request();
-    return status == PermissionStatus.granted;
+    try {
+      // Skip permission request on unsupported platforms
+      if (kIsWeb) {
+        print('🌐 Web platform - contacts permission not applicable');
+        return false;
+      }
+      
+      print('📱 Requesting contacts permission on ${Platform.operatingSystem}...');
+      
+      // Check current status first
+      final currentStatus = await Permission.contacts.status;
+      print('📱 Current permission status: $currentStatus');
+      
+      if (currentStatus == PermissionStatus.granted) {
+        print('✅ Contacts permission already granted');
+        return true;
+      }
+      
+      if (currentStatus == PermissionStatus.permanentlyDenied) {
+        print('🚫 Contacts permission permanently denied');
+        
+        // Platform-specific handling for permanently denied
+        if (Platform.isIOS) {
+          print('🍎 iOS: Opening app settings for permission');
+          await openAppSettings();
+        } else if (Platform.isAndroid) {
+          print('🤖 Android: Requesting permission (may open settings)');
+          await Permission.contacts.request();
+        }
+        
+        // Check again after potential settings visit
+        final newStatus = await Permission.contacts.status;
+        return newStatus == PermissionStatus.granted;
+      }
+      
+      // Request permission
+      final status = await Permission.contacts.request();
+      print('📱 Permission request result: $status');
+      
+      final granted = status == PermissionStatus.granted;
+      
+      if (granted) {
+        print('✅ Contacts permission granted on ${Platform.operatingSystem}!');
+      } else {
+        print('❌ Contacts permission denied on ${Platform.operatingSystem}');
+        
+        // Provide platform-specific guidance
+        if (Platform.isIOS) {
+          print('🍎 iOS: User can enable in Settings > Privacy & Security > Contacts');
+        } else if (Platform.isAndroid) {
+          print('🤖 Android: User can enable in Settings > Apps > ScamShield > Permissions');
+        }
+      }
+      
+      return granted;
+    } catch (e) {
+      print('❌ Error requesting contacts permission on ${Platform.operatingSystem}: $e');
+      
+      // Platform-specific error handling
+      if (Platform.isIOS && e.toString().contains('NSContactsUsageDescription')) {
+        print('🍎 iOS: Missing NSContactsUsageDescription in Info.plist');
+      } else if (Platform.isAndroid && e.toString().contains('READ_CONTACTS')) {
+        print('🤖 Android: Missing READ_CONTACTS permission in AndroidManifest.xml');
+      }
+      
+      return false;
+    }
   }
 
   /// Get all contacts (cached for performance)

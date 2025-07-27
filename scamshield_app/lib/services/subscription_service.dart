@@ -12,7 +12,6 @@ class SubscriptionService {
   static SubscriptionService get instance => _instance;
 
   // Paystack Configuration
-  static const String _publicKey = 'pk_test_17888922be48dfe8b87c86a4cec5eaae533f06c0';
   static const String _secretKey = 'sk_test_564758713eb90887f7d1a4c91a74ab46b12b66da';
   static const String _planCode = 'PLN_g9u94yi9dyrf5ut';
   
@@ -104,7 +103,7 @@ class SubscriptionService {
           'currency': 'ZAR',
           'plan': _planCode,
           'reference': 'scamshield_${DateTime.now().millisecondsSinceEpoch}',
-          'callback_url': 'https://scamshield.app/payment/callback',
+          'callback_url': 'scamshield://payment/success',
           'metadata': {
             'subscription_type': 'premium',
             'trial_converted': true,
@@ -354,4 +353,5 @@ class SubscriptionService {
     // Sync with backend
     await _syncSubscriptionToBackend('active');
   }
+
 }

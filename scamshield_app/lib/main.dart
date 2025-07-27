@@ -5,7 +5,7 @@ import 'services/auth_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/auth/phone_input_screen.dart';
-
+import 'screens/loading_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,50 +79,38 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _checkAuthStatus() async {
     try {
-      final isLoggedIn = await AuthService.isAuthenticated();
+      // Start auth check and minimum loading time in parallel
+      final authFuture = AuthService.isAuthenticated();
+      final minLoadingTime = Future.delayed(const Duration(milliseconds: 3000)); // 3 seconds to see animation
       
-      setState(() {
-        _isAuthenticated = isLoggedIn;
-        _isLoading = false;
-      });
+      final results = await Future.wait([authFuture, minLoadingTime]);
+      final isLoggedIn = results[0] as bool;
+      
+      if (mounted) {
+        setState(() {
+          _isAuthenticated = isLoggedIn;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isAuthenticated = false;
-        _isLoading = false;
-      });
+      // Still wait minimum time even on error
+      await Future.delayed(const Duration(milliseconds: 3000));
+      
+      if (mounted) {
+        setState(() {
+          _isAuthenticated = false;
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // ScamShield Logo
-              Center(
-                child: Image.asset(
-                  'assets/images/ScamShield.png',
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              const SizedBox(height: 24),
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              const Text(
-                'Loading ScamShield...',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return const LoadingScreen(
+        message: 'Initializing ScamShield Protection...',
+        duration: Duration(milliseconds: 6000),
       );
     }
 

@@ -167,7 +167,7 @@ class AuthService {
       final didAuthenticate = await _localAuth.authenticate(
         localizedReason: 'Enable biometric authentication for ScamShield',
         options: const AuthenticationOptions(
-          biometricOnly: false,
+          biometricOnly: true,
           stickyAuth: true,
         ),
       );
@@ -204,7 +204,7 @@ class AuthService {
       return await _localAuth.authenticate(
         localizedReason: 'Authenticate to access ScamShield',
         options: const AuthenticationOptions(
-          biometricOnly: false,
+          biometricOnly: true,
           stickyAuth: true,
         ),
       );

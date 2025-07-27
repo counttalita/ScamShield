@@ -43,6 +43,7 @@ class CallService {
       // Check if protection is enabled
       final prefs = await SharedPreferences.getInstance();
       final isProtectionEnabled = prefs.getBool('protection_enabled') ?? true;
+      final silenceUnknownNumbers = prefs.getBool('silence_unknown_numbers') ?? false;
       
       if (!isProtectionEnabled) {
         print('🔓 Protection disabled, allowing call');
@@ -56,14 +57,18 @@ class CallService {
       print('🎯 Risk level: ${result.riskLevel}, Auto-reject: ${result.autoReject}');
       
       if (result.shouldBlock || result.autoReject) {
-        // Automatically reject high-risk scam calls
+        // Handle confirmed spam/scam calls - BLOCK them
         if (result.autoReject) {
           print('🚫 AUTO-REJECTING high-risk scam call from $phoneNumber');
           await _autoRejectCall(phoneNumber, result);
         } else {
-          print('🛡️ Blocking suspicious call from $phoneNumber');
+          print('🛡️ BLOCKING confirmed spam call from $phoneNumber');
           await _blockCall(phoneNumber, result);
         }
+      } else if (result.action == 'unknown' && silenceUnknownNumbers) {
+        // Handle unknown callers - SILENCE them (don't block)
+        print('🔇 SILENCING unknown caller from $phoneNumber');
+        await _silenceCall(phoneNumber, result);
       } else {
         print('✅ Call allowed from $phoneNumber');
       }
@@ -104,10 +109,10 @@ class CallService {
     }
   }
 
-  /// Block the incoming call (for medium-risk calls)
+  /// Block the incoming call (for confirmed spam/scam calls)
   static Future<void> _blockCall(String phoneNumber, CallCheckResult result) async {
     try {
-      print('🛡️ Blocking suspicious call from $phoneNumber');
+      print('🛡️ Blocking confirmed spam/scam call from $phoneNumber');
       
       // End the call using native method
       await _channel.invokeMethod('endCall');
@@ -118,10 +123,37 @@ class CallService {
       // Show notification about blocked call
       await _showBlockedCallNotification(phoneNumber, result);
       
-      print('✅ Successfully blocked call from $phoneNumber');
+      // Update statistics for blocked calls
+      await _updateStatistics('blocked');
+      
+      print('✅ Successfully blocked spam/scam call from $phoneNumber');
       
     } catch (e) {
       print('❌ Failed to block call from $phoneNumber: $e');
+    }
+  }
+
+  /// Silence the incoming call (for unknown callers - they can still leave voicemail)
+  static Future<void> _silenceCall(String phoneNumber, CallCheckResult result) async {
+    try {
+      print('🔇 Silencing unknown caller from $phoneNumber');
+      
+      // Silence the call (mute ringer) but don't reject it completely
+      // This allows the call to go to voicemail if it's legitimate
+      await _channel.invokeMethod('silenceCall', {'phoneNumber': phoneNumber});
+      
+      // Show notification about silenced call
+      await _showSilencedCallNotification(phoneNumber, result);
+      
+      // Update statistics for silenced calls
+      await _updateStatistics('silenced');
+      
+      print('✅ Successfully silenced unknown caller from $phoneNumber');
+      
+    } catch (e) {
+      print('❌ Failed to silence call from $phoneNumber: $e');
+      // Fallback: if silencing fails, just log it but don't block
+      print('ℹ️ Call from $phoneNumber will ring normally');
     }
   }
 
@@ -136,7 +168,14 @@ class CallService {
   static Future<void> _showBlockedCallNotification(String phoneNumber, CallCheckResult result) async {
     // This would integrate with a notification service
     // For now, just log it
-    print('🔔 Blocked call notification: $phoneNumber (${result.category ?? 'spam'})');
+    print('🔔 BLOCKED call notification: $phoneNumber (${result.category ?? 'spam'}) - Call was blocked and rejected');
+  }
+
+  /// Show notification about silenced call
+  static Future<void> _showSilencedCallNotification(String phoneNumber, CallCheckResult result) async {
+    // This would integrate with a notification service
+    // For now, just log it
+    print('🔔 SILENCED call notification: $phoneNumber (unknown caller) - Call was silenced, can leave voicemail');
   }
 
   /// Log call for statistics and history

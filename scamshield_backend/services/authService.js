@@ -61,22 +61,42 @@ class AuthService {
         attempts: 0
       };
       
+      log('info', `OTP generated for ${phoneNumber}: ${otp}, expires at: ${new Date(otpData.expiresAt).toISOString()}`);
+      
       this.otpStore.set(phoneNumber, otpData);
 
       // Send OTP via Twilio (if available)
       if (this.twilioClient) {
-        const message = `Your ScamShield verification code is: ${otp}. Valid for 5 minutes.`;
-        
-        await this.twilioClient.messages.create({
-          body: message,
-          from: process.env.TWILIO_PHONE_NUM,
-          to: phoneNumber
-        });
+        try {
+          const message = `Your ScamShield verification code is: ${otp}. Valid for 5 minutes.`;
+          
+          await this.twilioClient.messages.create({
+            body: message,
+            from: process.env.TWILIO_PHONE_NUM,
+            to: phoneNumber
+          });
 
-        log('info', `OTP sent to ${phoneNumber}`);
+          log('info', `OTP sent to ${phoneNumber}`);
+        } catch (twilioError) {
+          // Fallback to development mode if Twilio fails
+          log('warn', `Twilio failed, using development mode. Error: ${twilioError.message}`);
+          console.log('\n' + '='.repeat(50));
+          console.log('🔐 DEVELOPMENT MODE - OTP CODE');
+          console.log('='.repeat(50));
+          console.log(`📱 Phone: ${phoneNumber}`);
+          console.log(`🔢 OTP Code: ${otp}`);
+          console.log(`⏰ Valid for: 5 minutes`);
+          console.log('='.repeat(50) + '\n');
+        }
       } else {
         // Development mode - log OTP
-        log('info', `[DEV MODE] OTP for ${phoneNumber}: ${otp}`);
+        console.log('\n' + '='.repeat(50));
+        console.log('🔐 DEVELOPMENT MODE - OTP CODE');
+        console.log('='.repeat(50));
+        console.log(`📱 Phone: ${phoneNumber}`);
+        console.log(`🔢 OTP Code: ${otp}`);
+        console.log(`⏰ Valid for: 5 minutes`);
+        console.log('='.repeat(50) + '\n');
       }
 
       return {
@@ -104,15 +124,22 @@ class AuthService {
     try {
       const otpData = this.otpStore.get(phoneNumber);
       
+      log('info', `OTP verification attempt for ${phoneNumber} with OTP: ${otp}`);
+      
       if (!otpData) {
+        log('warn', `No OTP data found for ${phoneNumber}`);
         return {
           success: false,
           message: 'OTP not found or expired. Please request a new one.'
         };
       }
 
+      log('info', `Found OTP data: ${JSON.stringify({...otpData, otp: otpData.otp})}`);
+      log('info', `Current time: ${Date.now()}, Expires at: ${otpData.expiresAt}, Time remaining: ${otpData.expiresAt - Date.now()}ms`);
+
       // Check expiration
       if (Date.now() > otpData.expiresAt) {
+        log('warn', `OTP expired for ${phoneNumber}`);
         this.otpStore.delete(phoneNumber);
         return {
           success: false,

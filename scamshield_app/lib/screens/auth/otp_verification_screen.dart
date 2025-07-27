@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import '../../services/auth_service.dart';
 import '../home_screen.dart';
+import '../loading_screen.dart';
 import 'biometric_setup_screen.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
@@ -35,8 +36,17 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   @override
   void dispose() {
-    _otpController.dispose();
+    // Cancel timer first
     _timer?.cancel();
+    _timer = null;
+    
+    // Safely dispose controller with try-catch
+    try {
+      _otpController.dispose();
+    } catch (e) {
+      // Controller already disposed, ignore
+    }
+    
     super.dispose();
   }
 
@@ -45,14 +55,23 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     _canResend = false;
     
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
       if (_remainingTime > 0) {
-        setState(() {
-          _remainingTime--;
-        });
+        if (mounted) {
+          setState(() {
+            _remainingTime--;
+          });
+        }
       } else {
-        setState(() {
-          _canResend = true;
-        });
+        if (mounted) {
+          setState(() {
+            _canResend = true;
+          });
+        }
         timer.cancel();
       }
     });
@@ -67,6 +86,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   Future<void> _verifyOTP() async {
     if (_otpController.text.length != 6) {
       _showErrorDialog('Please enter the complete 6-digit code');
+      return;
+    }
+
+    // Prevent double submission
+    if (_isLoading) {
       return;
     }
 
@@ -87,19 +111,18 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           final isBiometricAvailable = await authService.isBiometricAvailable();
           
           if (isBiometricAvailable) {
-            // Navigate to biometric setup
-            Navigator.pushReplacement(
+            // Show epic shield animation then navigate to biometric setup
+            LoadingScreenHelper.navigateWithLoading(
               context,
-              MaterialPageRoute(
-                builder: (context) => const BiometricSetupScreen(),
-              ),
+              nextScreen: const BiometricSetupScreen(),
+              message: 'Authentication Successful!\nSetting up biometric protection...',
             );
           } else {
-            // Navigate directly to home
-            Navigator.pushAndRemoveUntil(
+            // Show epic shield animation then navigate to home
+            LoadingScreenHelper.navigateWithLoading(
               context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (route) => false,
+              nextScreen: const HomeScreen(),
+              message: 'Authentication Successful!\nActivating ScamShield protection...',
             );
           }
         }
@@ -252,10 +275,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                     _verifyOTP();
                   },
                   onChanged: (value) {
-                    // Auto-verify when 6 digits are entered
-                    if (value.length == 6) {
-                      _verifyOTP();
-                    }
+                    // Just update the UI, verification happens in onCompleted
                   },
                 ),
               ),
@@ -264,12 +284,59 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               
               // Timer and resend
               if (!_canResend)
-                Text(
-                  'Resend code in $_formattedTime',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue.shade50, Colors.blue.shade100],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.timer,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Resend code in ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          _formattedTime,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 )
               else
