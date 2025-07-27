@@ -1,7 +1,8 @@
 import 'dart:io';
-import 'package:contacts_service/contacts_service.dart' as contacts_service;
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:contacts_service/contacts_service.dart' as contacts_service;
+import 'package:flutter/services.dart';
 
 class ContactsService {
   static ContactsService? _instance;

@@ -18,6 +18,7 @@ const AuthService = require('./services/authService');
 const VoiceAnalysisHandler = require('./websocket/voiceAnalysisHandler');
 const createApiRoutes = require('./routes/api');
 const createAuthRoutes = require('./routes/auth');
+const createCallHistoryRoutes = require('./routes/callHistory');
 const { createAuthMiddleware, createOptionalAuthMiddleware } = require('./middleware/authMiddleware');
 const { log } = require('./utils/helpers');
 
@@ -112,9 +113,11 @@ const apiRoutes = createApiRoutes(
   spamDetectionService
 );
 const authRoutes = createAuthRoutes(authService, authMiddleware);
+const callHistoryRoutes = createCallHistoryRoutes();
 
 // Mount routes
 app.use('/auth', authRoutes);
+app.use('/api/call-history', callHistoryRoutes);
 app.use('/', optionalAuthMiddleware, apiRoutes);
 
 // WebSocket connection handling

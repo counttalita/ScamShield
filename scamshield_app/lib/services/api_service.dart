@@ -3,44 +3,46 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String _baseUrl = 'https://your-backend.com/api'; // Production backend URL
-  static const String _localUrl = 'http://localhost:3000'; // Development backend URL
-  
-  /// Get the appropriate backend URL based on environment
-  static Future<String> get _backendUrl async {
-    // In production, you might check environment variables or config
-    // For now, we'll use localhost for development
-    return _localUrl;
-  }
-  
+  // Single base URL for iOS Simulator and Docker deployment
+  static const String _baseUrl =
+      'http://127.0.0.1:3000'; // iOS Simulator compatible
+
   /// Get authentication headers
   static Future<Map<String, String>> get _authHeaders async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    
+
     return {
       'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
-  
+
   /// Enhanced multi-API call checking with aggregated results
-  static Future<CallCheckResult> checkCall(String phoneNumber, {String? sessionId}) async {
+  static Future<CallCheckResult> checkCall(
+    String phoneNumber, {
+    String? sessionId,
+  }) async {
     try {
-      final baseUrl = await _backendUrl;
       final headers = await _authHeaders;
-      
-      final response = await http.post(
-        Uri.parse('$baseUrl/calls/analyze'),
-        headers: headers,
-        body: jsonEncode({
-          'phoneNumber': phoneNumber,
-          'sessionId': sessionId,
-          'requestedApis': ['hiya', 'truecaller', 'telesign'], // Multi-API request
-          'aggregationStrategy': 'weighted_consensus',
-          'timestamp': DateTime.now().toIso8601String(),
-        }),
-      ).timeout(const Duration(seconds: 15)); // Longer timeout for multi-API
+
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/calls/analyze'),
+            headers: headers,
+            body: jsonEncode({
+              'phoneNumber': phoneNumber,
+              'sessionId': sessionId,
+              'requestedApis': [
+                'hiya',
+                'truecaller',
+                'telesign',
+              ], // Multi-API request
+              'aggregationStrategy': 'weighted_consensus',
+              'timestamp': DateTime.now().toIso8601String(),
+            }),
+          )
+          .timeout(const Duration(seconds: 15)); // Longer timeout for multi-API
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -54,7 +56,7 @@ class ApiService {
       return _createFallbackResult('Network error: $e');
     }
   }
-  
+
   /// Create fallback result when API fails
   static CallCheckResult _createFallbackResult(String error) {
     return CallCheckResult(
@@ -73,19 +75,21 @@ class ApiService {
     required String callId,
   }) async {
     try {
-      final baseUrl = await _backendUrl;
+      final baseUrl = _baseUrl;
       final headers = await _authHeaders;
-      
-      final response = await http.post(
-        Uri.parse('$baseUrl/analysis/start'),
-        headers: headers,
-        body: jsonEncode({
-          'phoneNumber': phoneNumber,
-          'callId': callId,
-          'timestamp': DateTime.now().toIso8601String(),
-        }),
-      ).timeout(const Duration(seconds: 10));
-      
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/analysis/start'),
+            headers: headers,
+            body: jsonEncode({
+              'phoneNumber': phoneNumber,
+              'callId': callId,
+              'timestamp': DateTime.now().toIso8601String(),
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['sessionId'];
@@ -96,29 +100,31 @@ class ApiService {
       return null;
     }
   }
-  
+
   /// End real-time audio analysis session
   static Future<bool> endAnalysisSession(String sessionId) async {
     try {
-      final baseUrl = await _backendUrl;
+      final baseUrl = _baseUrl;
       final headers = await _authHeaders;
-      
-      final response = await http.post(
-        Uri.parse('$baseUrl/analysis/end'),
-        headers: headers,
-        body: jsonEncode({
-          'sessionId': sessionId,
-          'timestamp': DateTime.now().toIso8601String(),
-        }),
-      ).timeout(const Duration(seconds: 10));
-      
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/analysis/end'),
+            headers: headers,
+            body: jsonEncode({
+              'sessionId': sessionId,
+              'timestamp': DateTime.now().toIso8601String(),
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
       return response.statusCode == 200;
     } catch (e) {
       print('❌ Error ending analysis session: $e');
       return false;
     }
   }
-  
+
   /// Submit call report to backend
   static Future<bool> submitCallReport({
     required String phoneNumber,
@@ -129,41 +135,42 @@ class ApiService {
     Map<String, dynamic>? metadata,
   }) async {
     try {
-      final baseUrl = await _backendUrl;
+      final baseUrl = _baseUrl;
       final headers = await _authHeaders;
-      
-      final response = await http.post(
-        Uri.parse('$baseUrl/reports/submit'),
-        headers: headers,
-        body: jsonEncode({
-          'phoneNumber': phoneNumber,
-          'reportType': reportType,
-          'reason': reason,
-          'callId': callId,
-          'sessionId': sessionId,
-          'metadata': metadata ?? {},
-          'timestamp': DateTime.now().toIso8601String(),
-        }),
-      ).timeout(const Duration(seconds: 10));
-      
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/reports/submit'),
+            headers: headers,
+            body: jsonEncode({
+              'phoneNumber': phoneNumber,
+              'reportType': reportType,
+              'reason': reason,
+              'callId': callId,
+              'sessionId': sessionId,
+              'metadata': metadata ?? {},
+              'timestamp': DateTime.now().toIso8601String(),
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       print('❌ Error submitting report: $e');
       return false;
     }
   }
-  
+
   /// Get backend statistics and health info
   static Future<Map<String, dynamic>?> getBackendStats() async {
     try {
-      final baseUrl = await _backendUrl;
+      final baseUrl = _baseUrl;
       final headers = await _authHeaders;
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/stats'),
-        headers: headers,
-      ).timeout(const Duration(seconds: 10));
-      
+
+      final response = await http
+          .get(Uri.parse('$baseUrl/stats'), headers: headers)
+          .timeout(const Duration(seconds: 10));
+
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
@@ -173,25 +180,27 @@ class ApiService {
       return null;
     }
   }
-  
+
   /// Sync local database with backend
   static Future<Map<String, dynamic>?> syncDatabase({
     required DateTime lastSyncTime,
     int limit = 1000,
   }) async {
     try {
-      final baseUrl = await _backendUrl;
+      final baseUrl = _baseUrl;
       final headers = await _authHeaders;
-      
-      final response = await http.post(
-        Uri.parse('$baseUrl/sync'),
-        headers: headers,
-        body: jsonEncode({
-          'lastSyncTime': lastSyncTime.toIso8601String(),
-          'limit': limit,
-        }),
-      ).timeout(const Duration(seconds: 30));
-      
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/sync'),
+            headers: headers,
+            body: jsonEncode({
+              'lastSyncTime': lastSyncTime.toIso8601String(),
+              'limit': limit,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
@@ -201,19 +210,94 @@ class ApiService {
       return null;
     }
   }
-  
+
   /// Health check for the backend API
   static Future<bool> isBackendHealthy() async {
     try {
-      final baseUrl = await _backendUrl;
-      final response = await http.get(
-        Uri.parse('$baseUrl/health'),
-      ).timeout(const Duration(seconds: 5));
-      
-      return response.statusCode == 200;
-    } catch (e) {
-      print('❌ Backend health check failed: $e');
+      final baseUrl = _baseUrl;
+      final response = await http
+          .get(Uri.parse('$baseUrl/'))
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        // Verify it's actually our ScamShield API
+        final data = json.decode(response.body);
+        return data['message']?.toString().contains('ScamShield') == true;
+      }
       return false;
+    } catch (e) {
+      // Don't log health check failures - they're expected during development
+      return false;
+    }
+  }
+
+  /// Get recent call history from PostgreSQL (last 5 entries)
+  static Future<List<Map<String, dynamic>>> getRecentCallHistory() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/call-history/recent'),
+        headers: await _authHeaders,
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+      }
+      print('Failed to fetch recent call history: ${response.statusCode}');
+      return [];
+    } catch (e) {
+      print('Error fetching recent call history: $e');
+      return [];
+    }
+  }
+
+  /// Get weekly call history from PostgreSQL (paginated)
+  static Future<Map<String, dynamic>> getWeeklyCallHistory({int page = 1, int limit = 20}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/call-history/weekly?page=$page&limit=$limit'),
+        headers: await _authHeaders,
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return {
+            'data': List<Map<String, dynamic>>.from(data['data']),
+            'pagination': data['pagination'],
+            'statistics': data['statistics'],
+          };
+        }
+      }
+      print('Failed to fetch weekly call history: ${response.statusCode}');
+      return {'data': [], 'pagination': {}, 'statistics': {}};
+    } catch (e) {
+      print('Error fetching weekly call history: $e');
+      return {'data': [], 'pagination': {}, 'statistics': {}};
+    }
+  }
+
+  /// Get call history statistics from PostgreSQL
+  static Future<Map<String, dynamic>> getCallHistoryStats({int days = 7}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/call-history/stats?days=$days'),
+        headers: await _authHeaders,
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return data['data'];
+        }
+      }
+      print('Failed to fetch call history stats: ${response.statusCode}');
+      return {'totalCalls': 0, 'blockedCalls': 0, 'silencedCalls': 0};
+    } catch (e) {
+      print('Error fetching call history stats: $e');
+      return {'totalCalls': 0, 'blockedCalls': 0, 'silencedCalls': 0};
     }
   }
 }

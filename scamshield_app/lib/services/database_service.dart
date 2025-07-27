@@ -438,6 +438,152 @@ class DatabaseService {
       return 0.0;
     }
   }
+
+  /// Add a call action to history
+  Future<void> addCallHistory(CallHistoryEntry entry) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final history = await getCallHistory();
+      
+      // Add new entry at the beginning
+      history.insert(0, entry);
+      
+      // Keep only last 1000 entries to prevent unlimited growth
+      if (history.length > 1000) {
+        history.removeRange(1000, history.length);
+      }
+      
+      // Save back to storage
+      await prefs.setString(_callHistoryKey, jsonEncode(
+        history.map((e) => e.toJson()).toList()
+      ));
+      
+      print('📞 Added call history entry: ${entry.phoneNumber} - ${entry.action}');
+    } catch (e) {
+      print('❌ Error adding call history: $e');
+    }
+  }
+
+  /// Get call history with optional pagination
+  Future<List<CallHistoryEntry>> getCallHistory({
+    int limit = 50,
+    int offset = 0,
+    DateTime? since,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final data = prefs.getString(_callHistoryKey);
+      if (data == null) return [];
+      
+      final List<dynamic> jsonList = jsonDecode(data);
+      List<CallHistoryEntry> history = jsonList
+          .map((json) => CallHistoryEntry.fromJson(json))
+          .toList();
+      
+      // Filter by date if specified
+      if (since != null) {
+        history = history.where((entry) => entry.timestamp.isAfter(since)).toList();
+      }
+      
+      // Apply pagination
+      final startIndex = offset;
+      final endIndex = (offset + limit).clamp(0, history.length);
+      
+      if (startIndex >= history.length) return [];
+      
+      return history.sublist(startIndex, endIndex);
+    } catch (e) {
+      print('❌ Error getting call history: $e');
+      return [];
+    }
+  }
+
+  /// Get call history for the last week
+  Future<List<CallHistoryEntry>> getWeeklyCallHistory() async {
+    final oneWeekAgo = DateTime.now().subtract(const Duration(days: 7));
+    return getCallHistory(since: oneWeekAgo, limit: 1000);
+  }
+
+  /// Get recent call history (last 10 entries)
+  Future<List<CallHistoryEntry>> getRecentCallHistory() async {
+    return getCallHistory(limit: 10);
+  }
+
+  /// Clear old call history (older than specified days)
+  Future<void> cleanupCallHistory({int olderThanDays = 30}) async {
+    try {
+      final cutoffDate = DateTime.now().subtract(Duration(days: olderThanDays));
+      final history = await getCallHistory(limit: 1000);
+      
+      final filteredHistory = history
+          .where((entry) => entry.timestamp.isAfter(cutoffDate))
+          .toList();
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_callHistoryKey, jsonEncode(
+        filteredHistory.map((e) => e.toJson()).toList()
+      ));
+      
+      final removedCount = history.length - filteredHistory.length;
+      print('📞 Cleaned up $removedCount old call history entries');
+    } catch (e) {
+      print('❌ Error cleaning up call history: $e');
+    }
+  }
+}
+
+/// Data model for call history entries
+class CallHistoryEntry {
+  final String phoneNumber;
+  final String action; // 'blocked', 'silenced', 'allowed'
+  final String reason;
+  final DateTime timestamp;
+  final String? contactName;
+  final String riskLevel; // 'low', 'medium', 'high'
+  
+  CallHistoryEntry({
+    required this.phoneNumber,
+    required this.action,
+    required this.reason,
+    required this.timestamp,
+    this.contactName,
+    this.riskLevel = 'medium',
+  });
+  
+  Map<String, dynamic> toJson() => {
+    'phoneNumber': phoneNumber,
+    'action': action,
+    'reason': reason,
+    'timestamp': timestamp.toIso8601String(),
+    'contactName': contactName,
+    'riskLevel': riskLevel,
+  };
+  
+  factory CallHistoryEntry.fromJson(Map<String, dynamic> json) => CallHistoryEntry(
+    phoneNumber: json['phoneNumber'] ?? '',
+    action: json['action'] ?? 'unknown',
+    reason: json['reason'] ?? '',
+    timestamp: DateTime.parse(json['timestamp'] ?? DateTime.now().toIso8601String()),
+    contactName: json['contactName'],
+    riskLevel: json['riskLevel'] ?? 'medium',
+  );
+  
+  String get timeAgo {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+    
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} min ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+    }
+  }
 }
 
 /// Data model for scam number entries
