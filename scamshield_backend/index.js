@@ -15,10 +15,12 @@ const HiyaService = require('./services/hiyaService');
 const DatabaseService = require('./services/databaseService');
 const SpamDetectionService = require('./services/spamDetectionService');
 const AuthService = require('./services/authService');
+const PostgresService = require('./services/postgresService');
 const VoiceAnalysisHandler = require('./websocket/voiceAnalysisHandler');
 const createApiRoutes = require('./routes/api');
 const createAuthRoutes = require('./routes/auth');
 const createCallHistoryRoutes = require('./routes/callHistory');
+const createSubscriptionRoutes = require('./routes/subscription');
 const { createAuthMiddleware, createOptionalAuthMiddleware } = require('./middleware/authMiddleware');
 const { log } = require('./utils/helpers');
 
@@ -33,6 +35,7 @@ const hiyaService = new HiyaService();
 const databaseService = new DatabaseService();
 const spamDetectionService = new SpamDetectionService();
 const authService = new AuthService();
+const postgresService = new PostgresService();
 const voiceAnalysisHandler = new VoiceAnalysisHandler(sessionService, hiyaService);
 
 // Create Express app and HTTP server
@@ -96,6 +99,10 @@ app.use((req, res, next) => {
     
     log('success', 'Multi-API spam detection service initialized');
     
+    // Initialize PostgreSQL service
+    await postgresService.initialize();
+    log('success', 'PostgreSQL service initialized');
+    
   } catch (error) {
     log('error', 'Failed to initialize services:', error);
   }
@@ -114,10 +121,12 @@ const apiRoutes = createApiRoutes(
 );
 const authRoutes = createAuthRoutes(authService, authMiddleware);
 const callHistoryRoutes = createCallHistoryRoutes();
+const subscriptionRoutes = createSubscriptionRoutes(postgresService);
 
 // Mount routes
 app.use('/auth', authRoutes);
 app.use('/api/call-history', callHistoryRoutes);
+app.use('/api/subscription', authMiddleware, subscriptionRoutes);
 app.use('/', optionalAuthMiddleware, apiRoutes);
 
 // WebSocket connection handling

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SubscriptionService {
   static final SubscriptionService _instance = SubscriptionService._internal();
@@ -11,12 +12,12 @@ class SubscriptionService {
 
   static SubscriptionService get instance => _instance;
 
-  // Paystack Configuration
-  static const String _secretKey = 'sk_test_564758713eb90887f7d1a4c91a74ab46b12b66da';
-  static const String _planCode = 'PLN_g9u94yi9dyrf5ut';
+  // Paystack Configuration - loaded from environment variables
+  static String get _secretKey => dotenv.env['PAYSTACK_SECRET_KEY'] ?? '';
+  static String get _planCode => dotenv.env['PAYSTACK_PLAN_CODE'] ?? '';
   
   // Subscription Details
-  static const int _monthlyAmountZAR = 3500; // ZAR 35.00 in kobo/cents
+  // Note: Amount is determined by Paystack plan configuration, not hardcoded
   static const int _trialDays = 30;
 
 
@@ -99,7 +100,6 @@ class SubscriptionService {
         },
         body: json.encode({
           'email': email,
-          'amount': _monthlyAmountZAR,
           'currency': 'ZAR',
           'plan': _planCode,
           'reference': 'scamshield_${DateTime.now().millisecondsSinceEpoch}',
@@ -159,7 +159,6 @@ class SubscriptionService {
     return {
       'status': status,
       'plan_code': _planCode,
-      'amount': _monthlyAmountZAR,
       'currency': 'ZAR',
       'trial_days_remaining': await getTrialDaysRemaining(),
       'is_on_trial': await isOnTrial(),
@@ -182,70 +181,60 @@ class SubscriptionService {
     return 'R${(amountInCents / 100).toStringAsFixed(2)}';
   }
 
-  // Get formatted subscription price
-  String get formattedPrice => formatAmount(_monthlyAmountZAR);
-
   // Get trial period text
   String get trialPeriodText => '$_trialDays days';
 
   // Cancel subscription
   Future<bool> cancelSubscription() async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    await prefs.setString('subscription_status', 'cancelled');
-    await prefs.setString('subscription_cancelled_date', DateTime.now().toIso8601String());
-    
-    // Sync cancellation with backend
-    await _syncSubscriptionToBackend('cancelled');
-    
-    return true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Update local subscription status
+      await prefs.setString('subscription_status', 'cancelled');
+      await prefs.setBool('has_premium_subscription', false);
+      await prefs.remove('subscription_start_date');
+      await prefs.remove('payment_reference');
+      
+      // Sync with backend
+      await _syncSubscriptionToBackend('cancelled');
+      
+      print('Subscription cancelled successfully');
+      return true;
+    } catch (e) {
+      print('Error cancelling subscription: $e');
+      return false;
+    }
   }
 
   // Sync subscription status to backend database
-  Future<bool> _syncSubscriptionToBackend(String status) async {
+  Future<void> _syncSubscriptionToBackend(String status) async {
     try {
       final token = await _getAuthToken();
-      if (token == null) {
-        print('No auth token available for subscription sync');
-        return false;
-      }
+      if (token == null) return;
 
       final prefs = await SharedPreferences.getInstance();
+      final paymentReference = prefs.getString('payment_reference');
+      
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/subscription/sync'),
+        Uri.parse('http://127.0.0.1:3000/api/subscription/sync'),
         headers: {
-          'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
         },
         body: json.encode({
           'status': status,
-          'plan_code': _planCode,
-          'amount': _monthlyAmountZAR,
-          'currency': 'ZAR',
-          'trial_start_date': prefs.getString('trial_start_date'),
-          'subscription_start_date': prefs.getString('subscription_start_date'),
-          'payment_reference': prefs.getString('pending_payment_reference'),
-          'sync_timestamp': DateTime.now().toIso8601String(),
+          'paymentReference': paymentReference ?? 'none',
+          'amountPaid': 0, // Amount is determined by Paystack plan, not hardcoded
         }),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          // Update local status based on backend response
-          final backendStatus = data['subscription_status'];
-          if (backendStatus != null) {
-            await prefs.setString('subscription_status', backendStatus);
-          }
-          return true;
-        }
+        print('Subscription status synced to backend: $status');
+      } else {
+        print('Failed to sync subscription status: ${response.statusCode}');
       }
-      
-      print('Failed to sync subscription to backend: ${response.statusCode}');
-      return false;
     } catch (e) {
-      print('Error syncing subscription to backend: $e');
-      return false;
+      print('Error syncing subscription status: $e');
     }
   }
 

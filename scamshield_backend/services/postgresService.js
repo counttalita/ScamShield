@@ -99,6 +99,31 @@ class PostgresService {
       CREATE INDEX IF NOT EXISTS idx_scam_numbers_phone_number ON scam_numbers (phone_number);
       CREATE INDEX IF NOT EXISTS idx_scam_numbers_risk_level ON scam_numbers (risk_level);
 
+      -- Subscriptions table for detailed subscription tracking
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(20) NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'none', -- 'trial', 'active', 'expired', 'cancelled', 'none'
+        plan_code VARCHAR(50), -- Paystack plan code
+        payment_reference VARCHAR(100),
+        trial_start_date TIMESTAMP,
+        trial_end_date TIMESTAMP,
+        subscription_start_date TIMESTAMP,
+        subscription_end_date TIMESTAMP,
+        amount_paid INTEGER, -- Amount in cents/kobo
+        currency VARCHAR(3) DEFAULT 'ZAR',
+        payment_provider VARCHAR(20) DEFAULT 'paystack',
+        auto_renew BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(phone_number) ON DELETE CASCADE
+      );
+
+      -- Create indexes for subscriptions table
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions (user_id);
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions (status);
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_payment_ref ON subscriptions (payment_reference);
+
       -- User reports table
       CREATE TABLE IF NOT EXISTS user_reports (
         id SERIAL PRIMARY KEY,
@@ -218,6 +243,141 @@ class PostgresService {
       log('error', 'Failed to clear call history:', error.message);
       throw error;
     }
+  }
+
+  /**
+   * Create or update user subscription
+   */
+  async createOrUpdateSubscription(subscriptionData) {
+    const {
+      userId,
+      status,
+      planCode = null,
+      paymentReference = null,
+      trialStartDate = null,
+      trialEndDate = null,
+      subscriptionStartDate = null,
+      subscriptionEndDate = null,
+      amountPaid = null,
+      currency = 'ZAR',
+      paymentProvider = 'paystack',
+      autoRenew = true
+    } = subscriptionData;
+
+    // Ensure userId is provided
+    if (!userId) {
+      throw new Error('userId is required for subscription operations');
+    }
+
+    // Ensure status is provided
+    if (!status) {
+      throw new Error('status is required for subscription operations');
+    }
+
+    // Check if subscription exists
+    const existingQuery = 'SELECT id FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1';
+    const existingResult = await this.pool.query(existingQuery, [userId]);
+
+    if (existingResult.rows.length > 0) {
+      // Update existing subscription
+      const updateQuery = `
+        UPDATE subscriptions SET 
+          status = $2,
+          plan_code = $3,
+          payment_reference = $4,
+          trial_start_date = $5,
+          trial_end_date = $6,
+          subscription_start_date = $7,
+          subscription_end_date = $8,
+          amount_paid = $9,
+          currency = $10,
+          payment_provider = $11,
+          auto_renew = $12,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $13
+        RETURNING *
+      `;
+      const result = await this.pool.query(updateQuery, [
+        status, planCode, paymentReference, trialStartDate, trialEndDate,
+        subscriptionStartDate, subscriptionEndDate, amountPaid, currency,
+        paymentProvider, autoRenew, existingResult.rows[0].id
+      ]);
+      return result.rows[0];
+    } else {
+      // Create new subscription
+      const insertQuery = `
+        INSERT INTO subscriptions (
+          user_id, status, plan_code, payment_reference, trial_start_date,
+          trial_end_date, subscription_start_date, subscription_end_date,
+          amount_paid, currency, payment_provider, auto_renew
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING *
+      `;
+      const result = await this.pool.query(insertQuery, [
+        userId, status, planCode, paymentReference, trialStartDate, trialEndDate,
+        subscriptionStartDate, subscriptionEndDate, amountPaid, currency,
+        paymentProvider, autoRenew
+      ]);
+      return result.rows[0];
+    }
+  }
+
+  /**
+   * Get user subscription details
+   */
+  async getSubscription(userId) {
+    const query = `
+      SELECT * FROM subscriptions 
+      WHERE user_id = $1 
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `;
+    const result = await this.pool.query(query, [userId]);
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Start free trial for user
+   */
+  async startFreeTrial(userId) {
+    const now = new Date();
+    const trialEnd = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days
+
+    return await this.createOrUpdateSubscription({
+      userId,
+      status: 'trial',
+      trialStartDate: now,
+      trialEndDate: trialEnd
+    });
+  }
+
+  /**
+   * Activate paid subscription
+   */
+  async activateSubscription(userId, paymentReference, amountPaid) {
+    const now = new Date();
+    const subscriptionEnd = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days
+
+    return await this.createOrUpdateSubscription({
+      userId,
+      status: 'active',
+      paymentReference,
+      subscriptionStartDate: now,
+      subscriptionEndDate: subscriptionEnd,
+      amountPaid,
+      planCode: 'PLN_g9u94yi9dyrf5ut'
+    });
+  }
+
+  /**
+   * Cancel subscription
+   */
+  async cancelSubscription(userId) {
+    return await this.createOrUpdateSubscription({
+      userId,
+      status: 'cancelled',
+      autoRenew: false
+    });
   }
 
   /**

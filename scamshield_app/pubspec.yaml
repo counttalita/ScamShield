@@ -50,6 +50,7 @@ dependencies:
   # Payment dependencies
   # flutter_paystack: ^1.0.7  # Removed due to Material 3 compatibility issues
   url_launcher: ^6.2.1  # For opening Paystack payment URLs
+  flutter_dotenv: ^5.1.0  # For environment variable handling
   # Audio streaming dependencies
   web_socket_channel: ^2.4.0  # For real-time WebSocket communication
   flutter_sound: ^9.2.13  # For audio recording and streaming (iOS/Android compatible)
@@ -73,6 +74,7 @@ flutter:
 
   assets:
     - assets/images/
+    - .env
 
   # To add assets to your application, add an assets section, like this:
   # assets:

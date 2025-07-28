@@ -410,39 +410,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSubscriptionCard() {
-    return Card(
-      elevation: 4,
-      color: Theme.of(context).primaryColor.withOpacity(0.1),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.star, color: Theme.of(context).primaryColor),
-                const SizedBox(width: 8),
-                Text(
-                  'ScamShield Premium',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+    return FutureBuilder<String>(
+      future: SubscriptionService.instance.getSubscriptionStatus(),
+      builder: (context, snapshot) {
+        final status = snapshot.data ?? 'none';
+        
+        return FutureBuilder<bool>(
+          future: SubscriptionService.instance.hasPremiumSubscription(),
+          builder: (context, premiumSnapshot) {
+            final hasPremium = premiumSnapshot.data ?? false;
+        
+            return Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.star, color: Colors.blue, size: 24),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'ScamShield Premium',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Unlimited protection for just \R35/month',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => _showSubscriptionDialog(),
-              child: const Text('Manage Subscription'),
-            ),
-          ],
-        ),
-      ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Unlimited protection for just \R35/month',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () => _showSubscriptionDialog(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _getActionButtonColor(status),
+                    ),
+                    child: Text(_getActionButtonText(status, hasPremium)),
+                  ),  
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -612,7 +632,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         textBaseline: TextBaseline.alphabetic,
                         children: [
                           Text(
-                            subscriptionService.formattedPrice,
+                            'R35/month', // Price determined by Paystack plan
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -825,14 +845,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
 
       if (success) {
+        // Payment was successfully initiated - now wait for user to complete it
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              '🎉 Payment successful! Welcome to ScamShield Premium!',
+              '💳 Payment initiated! Complete the payment to activate your subscription.',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: Colors.blue,
           ),
         );
+        
+        // TODO: Implement proper payment callback handling
+        // For now, we'll simulate the payment completion after a delay
+        // In production, this should be handled via deep links or payment verification
+        Future.delayed(const Duration(seconds: 10), () async {
+          // Check if payment was completed (this is a temporary solution)
+          final paymentCompleted = await _checkPaymentStatus();
+          if (paymentCompleted && mounted) {
+            await subscriptionService.handleSuccessfulPayment('payment_ref_${DateTime.now().millisecondsSinceEpoch}');
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('🎉 Payment successful! Welcome to ScamShield Premium!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            
+            setState(() {}); // Refresh UI
+          }
+        });
       } else {
         _showErrorSnackBar('Payment failed. Please try again.');
       }
@@ -861,13 +902,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onPressed: () async {
                   Navigator.pop(context);
                   final subscriptionService = SubscriptionService.instance;
-                  await subscriptionService.cancelSubscription();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Subscription cancelled successfully.'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
+                  final success = await subscriptionService.cancelSubscription();
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Subscription cancelled successfully.'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    // Refresh the UI to show updated subscription status
+                    setState(() {});
+                  } else {
+                    _showErrorSnackBar('Failed to cancel subscription.');
+                  }
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 child: const Text('Cancel Subscription'),
@@ -915,5 +962,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
+  }
+
+  /// Temporary method to check payment status
+  /// TODO: Replace with proper Paystack payment verification
+  Future<bool> _checkPaymentStatus() async {
+    try {
+      final subscriptionService = SubscriptionService.instance;
+      final prefs = await SharedPreferences.getInstance();
+      final pendingReference = prefs.getString('pending_payment_reference');
+      
+      // For now, we'll assume payment is completed if there's a pending reference
+      // In production, this should verify with Paystack API
+      return pendingReference != null;
+    } catch (e) {
+      print('Error checking payment status: $e');
+      return false;
+    }
   }
 }
