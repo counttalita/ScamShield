@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScamShield - Advanced Real-Time Scam Protection | Block Spam Calls</title>
+    <meta name="description" content="Protect yourself from scam calls with ScamShield's AI-powered real-time protection. Block robocalls, spam, and fraudulent calls automatically. Download for iOS and Android.">
+    <meta name="keywords" content="scam protection, spam call blocker, robocall blocker, call protection, phone security, AI call blocking">
+    <meta name="author" content="ScamShield Team">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://scamshield.tosh.co.za/">
+    <meta property="og:title" content="ScamShield - Advanced Real-Time Scam Protection">
+    <meta property="og:description" content="AI-powered protection that blocks robocalls, spam, and fraudulent calls in real-time.">
+    <meta property="og:image" content="https://scamshield.tosh.co.za/og-image.png">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://scamshield.tosh.co.za/">
+    <meta property="twitter:title" content="ScamShield - Advanced Real-Time Scam Protection">
+    <meta property="twitter:description" content="AI-powered protection that blocks robocalls, spam, and fraudulent calls in real-time.">
+    <meta property="twitter:image" content="https://scamshield.tosh.co.za/og-image.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <style>
+        :root {
+            --primary-color: #1976D2;
+            --primary-light: #2196F3;
+            --accent-color: #4CAF50;
+            --background-gradient: linear-gradient(135deg, #1976D2 0%, #2196F3 100%);
+            --text-dark: #1a1a1a;
+            --text-light: #666;
+            --white: #ffffff;
+            --shadow-light: rgba(25, 118, 210, 0.1);
+            --shadow-medium: rgba(25, 118, 210, 0.2);
+            --shadow-heavy: rgba(25, 118, 210, 0.3);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: var(--background-gradient);
+            min-height: 100vh;
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+        
+        /* Professional animations */
+        .fade-in {
+            animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .slide-in-left {
+            animation: slideInLeft 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .slide-in-right {
+            animation: slideInRight 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes fadeInUp {
+            from { 
+                opacity: 0; 
+                transform: translateY(30px);
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* Professional Header */
+        header {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 3rem 0;
+            text-align: center;
+            color: var(--white);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        
+        .logo {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--white) 0%, rgba(255,255,255,0.8) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .subtitle {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            margin-bottom: 2rem;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Professional Hero Section */
+        .hero {
+            background: var(--white);
+            margin: 3rem auto;
+            border-radius: 24px;
+            padding: 4rem 3rem;
+            box-shadow: 
+                0 25px 50px var(--shadow-light),
+                0 10px 20px var(--shadow-medium),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-light), var(--accent-color));
+        }
+        
+        .hero h2 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+            line-height: 1.2;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+        
+        .download-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 2rem 0;
+        }
+        
+        /* Professional Download Buttons */
+        .download-buttons {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 3rem 0;
+        }
+        
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.2rem 2.5rem;
+            background: var(--white);
+            color: var(--text-dark);
+            text-decoration: none;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            min-width: 220px;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid transparent;
+            box-shadow: 
+                0 8px 25px var(--shadow-light),
+                0 3px 10px var(--shadow-medium);
+        }
+        
+        .download-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: -1;
+        }
+        
+        .download-btn:hover::before {
+            opacity: 1;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-4px) scale(1.02);
+            color: var(--white);
+            border-color: var(--primary-light);
+            box-shadow: 
+                0 20px 40px var(--shadow-medium),
+                0 8px 16px var(--shadow-heavy);
+        }
+        
+        .download-btn span {
+            font-size: 1.8rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .download-btn:hover span {
+            transform: scale(1.1);
+        }
+        
+        .download-btn.ios:hover::before {
+            background: linear-gradient(135deg, #000 0%, #333 100%);
+        }
+        
+        .download-btn.android:hover::before {
+            background: linear-gradient(135deg, var(--accent-color) 0%, #2E7D32 100%);
+        }
+        
+        /* Professional Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+            padding: 2rem 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 2rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(25, 118, 210, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+        }
+        
+        .stat-item:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px var(--shadow-light);
+        }
+        
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            line-height: 1;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            color: var(--text-light);
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-icon {
+            font-size: 2rem;
+            opacity: 0.8;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+        
+        .feature {
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        
+        .feature p {
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .pricing {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            margin: 2rem 0;
+        }
+        
+        .price {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #667eea;
+            margin: 1rem 0;
+        }
+        
+        .trial {
+            background: #e8f5e8;
+            color: #2d5a2d;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            display: inline-block;
+            margin: 1rem 0;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .problem-solution {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin: 2rem 0;
+        }
+        
+        .problem-list {
+            list-style: none;
+            margin: 1rem 0;
+        }
+        
+        .problem-list li {
+            padding: 0.5rem 0;
+            padding-left: 2rem;
+            position: relative;
+        }
+        
+        .problem-list li::before {
+            content: "❌";
+            position: absolute;
+            left: 0;
+        }
+        
+        .solution-list {
+            list-style: none;
+            margin: 1rem 0;
+        }
+        
+        .solution-list li {
+            padding: 0.5rem 0;
+            padding-left: 2rem;
+            position: relative;
+        }
+        
+        .solution-list li::before {
+            content: "✅";
+            position: absolute;
+            left: 0;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .logo {
+                font-size: 2.5rem;
+            }
+            
+            .hero, .pricing, .problem-solution {
+                padding: 2rem;
+                margin: 1rem;
+            }
+            
+            .download-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="fade-in">
+        <div class="container">
+            <div class="logo">🛡️</div>
+            <h1>ScamShield</h1>
+            <p class="subtitle">Advanced Real-Time Scam Protection</p>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="hero fade-in">
+            <h2>Stop Scam Calls Before They Ring</h2>
+            <p>AI-powered protection that blocks robocalls, spam, and fraudulent calls in real-time. Protect your privacy and peace of mind.</p>
+            
+            <!-- Professional Stats Section -->
+            <div class="stats-grid">
+                <div class="stat-item slide-in-left">
+                    <div class="stat-number" data-target="99.9">0</div>
+                    <div class="stat-label">Accuracy Rate</div>
+                    <div class="stat-icon">🎯</div>
+                </div>
+                <div class="stat-item fade-in">
+                    <div class="stat-number" data-target="1000000">0</div>
+                    <div class="stat-label">Calls Blocked</div>
+                    <div class="stat-icon">🛡️</div>
+                </div>
+                <div class="stat-item slide-in-right">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-label">Protection</div>
+                    <div class="stat-icon">⚡</div>
+                </div>
+            </div>
+            
+            <div class="download-buttons">
+                <a href="https://play.google.com/store/search?q=scamshield&c=apps" class="download-btn android">
+                    <span>📱</span>
+                    <div>
+                        <div>Download for</div>
+                        <div><strong>Android</strong></div>
+                    </div>
+                </a>
+                <a href="https://apps.apple.com/search?term=scamshield" class="download-btn ios">
+                    <span>🍎</span>
+                    <div>
+                        <div>Download for</div>
+                        <div><strong>iOS</strong></div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        
+        <div class="problem-solution">
+            <h2>🚨 The Problem</h2>
+            <p>Mobile users face an epidemic of scam calls that:</p>
+            <ul class="problem-list">
+                <li><strong>Disrupts daily productivity</strong> with constant interruptions</li>
+                <li><strong>Threatens financial security</strong> through sophisticated scam techniques</li>
+                <li><strong>Wastes valuable time</strong> with manual call screening</li>
+                <li><strong>Bypasses traditional blocklists</strong> with number spoofing</li>
+                <li><strong>Lacks real-time protection</strong> during active conversations</li>
+            </ul>
+            
+            <h2>💡 Our Solution</h2>
+            <p>ScamShield provides multi-layer protection:</p>
+            <ul class="solution-list">
+                <li><strong>Real-time audio analysis</strong> via WebSocket streaming</li>
+                <li><strong>Local database caching</strong> for instant threat recognition</li>
+                <li><strong>Contact whitelist integration</strong> for trusted caller protection</li>
+                <li><strong>Multi-API backend</strong> supporting Hiya, Truecaller, and Telesign</li>
+            </ul>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🔍</div>
+                <h3>Multi-Layer Detection</h3>
+                <p>Advanced AI algorithms analyze call patterns, audio content, and caller behavior to identify scams with high accuracy.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">🛡️</div>
+                <h3>Intelligent Call Protection</h3>
+                <p>Automatically reject high-risk scam calls, silence unknown callers, and provide real-time warnings during conversations.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">📱</div>
+                <h3>Professional Experience</h3>
+                <p>Epic animated shield loader, biometric authentication, comprehensive reporting, and seamless user interface.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>Real-Time Analysis</h3>
+                <p>Live audio monitoring during calls with instant scam detection and warning overlays to protect you in real-time.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">💾</div>
+                <h3>Smart Caching</h3>
+                <p>Local database stores known scam numbers for instant blocking (< 50ms response time) even when offline.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">🔐</div>
+                <h3>Secure & Private</h3>
+                <p>Biometric authentication, encrypted communications, and local data storage ensure your privacy is protected.</p>
+            </div>
+        </div>
+        
+        <div class="pricing">
+            <h2>💎 Premium Protection</h2>
+            <div class="trial">30-Day Free Trial</div>
+            <div class="price">ZAR 35<span style="font-size: 1rem; color: #666;">/month</span></div>
+            <p style="color: #666; margin-bottom: 2rem;">≈ $2 USD • Cancel anytime</p>
+            
+            <ul class="solution-list" style="text-align: left; max-width: 400px; margin: 0 auto;">
+                <li>Unlimited scam detection and blocking</li>
+                <li>Real-time audio analysis</li>
+                <li>Priority customer support</li>
+                <li>Advanced reporting and analytics</li>
+                <li>Multi-API protection (Hiya, Truecaller, Telesign)</li>
+            </ul>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 ScamShield. All rights reserved.</p>
+            <p>Protect yourself from scam calls with AI-powered real-time protection.</p>
+        </div>
+    </footer>
+    
+    <!-- Professional JavaScript for Interactions -->
+    <script>
+        // Animated number counter for stats
+        function animateNumbers() {
+            const statNumbers = document.querySelectorAll('.stat-number[data-target]');
+            
+            statNumbers.forEach(stat => {
+                const target = parseFloat(stat.getAttribute('data-target'));
+                const increment = target / 100;
+                let current = 0;
+                
+                const timer = setInterval(() => {
+                    current += increment;
+                    if (current >= target) {
+                        current = target;
+                        clearInterval(timer);
+                    }
+                    
+                    if (target >= 1000000) {
+                        stat.textContent = (current / 1000000).toFixed(1) + 'M+';
+                    } else {
+                        stat.textContent = current.toFixed(1) + '%';
+                    }
+                }, 20);
+            });
+        }
+        
+        // Intersection Observer for animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animationPlayState = 'running';
+                    if (entry.target.classList.contains('stats-grid')) {
+                        setTimeout(animateNumbers, 500);
+                    }
+                }
+            });
+        }, observerOptions);
+        
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Initialize animations when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Observe animated elements
+            document.querySelectorAll('.fade-in, .slide-in-left, .slide-in-right, .stats-grid').forEach(el => {
+                observer.observe(el);
+            });
+            
+            // Add loading complete class for any additional animations
+            setTimeout(() => {
+                document.body.classList.add('loaded');
+            }, 100);
+        });
+        
+        // Add subtle parallax effect to header
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const header = document.querySelector('header');
+            if (header) {
+                header.style.transform = `translateY(${scrolled * 0.5}px)`;
+            }
+        });
+    </script>
+</body>
+</html>

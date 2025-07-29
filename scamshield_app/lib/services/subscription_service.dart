@@ -87,7 +87,7 @@ class SubscriptionService {
 
   // Initialize payment with Paystack (HTTP-based)
   Future<bool> initializePayment({
-    required String email,
+    required String phoneNumber,
     required BuildContext context,
   }) async {
     try {
@@ -99,7 +99,7 @@ class SubscriptionService {
           'Content-Type': 'application/json',
         },
         body: json.encode({
-          'email': email,
+          'email': '${phoneNumber.replaceAll('+', '').replaceAll(' ', '')}@scamshield.app', // Generate email from phone number
           'currency': 'ZAR',
           'plan': _planCode,
           'reference': 'scamshield_${DateTime.now().millisecondsSinceEpoch}',

@@ -802,45 +802,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _showPaymentDialog() async {
-    final emailController = TextEditingController();
-
-    final email = await showDialog<String>(
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Subscribe to Premium'),
-            content: TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email Address',
-                hintText: 'your@email.com',
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, emailController.text),
-                child: const Text('Continue to Payment'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Subscribe to Premium'),
+        content: const Text(
+          'Upgrade to ScamShield Premium for advanced protection features.\n\n'
+          '• Enhanced spam detection\n'
+          '• Priority support\n'
+          '• Advanced call blocking\n\n'
+          'Continue to payment?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Continue to Payment'),
+          ),
+        ],
+      ),
     );
 
-    if (email != null && email.isNotEmpty) {
-      await _processPayment(email);
+    if (confirmed == true) {
+      await _processPayment();
     }
   }
 
-  Future<void> _processPayment(String email) async {
+  Future<void> _processPayment() async {
     final subscriptionService = SubscriptionService.instance;
+    
+    // Get user's phone number from auth service
+    final user = await AuthService.getUser();
+    if (user == null) {
+      _showErrorSnackBar('Please log in to subscribe');
+      return;
+    }
 
     try {
       final success = await subscriptionService.initializePayment(
-        email: email,
+        phoneNumber: user.phoneNumber,
         context: context,
       );
 

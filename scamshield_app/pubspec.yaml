@@ -39,15 +39,18 @@ dependencies:
   cupertino_icons: ^1.0.8
   # Authentication dependencies
   local_auth: ^2.1.6
+  flutter_secure_storage: ^9.0.0
   intl_phone_field: ^3.2.0
   pin_code_fields: ^8.0.1
   # UI dependencies
   flutter_svg: ^2.0.9
   # App info dependencies
-  package_info_plus: ^4.2.0
+  package_info_plus: ^8.3.0
   # Contacts dependencies
   contacts_service: ^0.6.3
   # Payment dependencies
+  # Appwrite SDK
+  appwrite: ^12.0.3
   # flutter_paystack: ^1.0.7  # Removed due to Material 3 compatibility issues
   url_launcher: ^6.2.1  # For opening Paystack payment URLs
   flutter_dotenv: ^5.1.0  # For environment variable handling
