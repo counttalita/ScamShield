@@ -76,9 +76,9 @@ class _BiometricLoginScreenState extends State<BiometricLoginScreen> {
     });
 
     try {
-      final success = await _authService.authenticateWithBiometric();
+      final result = await _authService.authenticateWithBiometric();
       
-      if (success) {
+      if (result.success) {
         if (mounted) {
           // Navigate to home screen
           Navigator.pushAndRemoveUntil(
@@ -89,7 +89,9 @@ class _BiometricLoginScreenState extends State<BiometricLoginScreen> {
         }
       } else {
         if (mounted) {
-          _showErrorDialog('Biometric authentication failed. Please try again or use phone number login.');
+          // Show specific error message from the result
+          final errorMessage = result.error ?? 'Biometric authentication failed. Please try again or use phone number login.';
+          _showErrorDialog(errorMessage);
         }
       }
     } catch (e) {

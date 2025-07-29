@@ -485,6 +485,25 @@ class AuthService {
   }
 }
 
+/// Authentication result model
+class AuthResult {
+  final bool success;
+  final String? message;
+  final String? code;
+  final String? token;
+  final User? user;
+  final int? expiresIn;
+
+  AuthResult({
+    required this.success,
+    this.message,
+    this.code,
+    this.token,
+    this.user,
+    this.expiresIn,
+  });
+}
+
 /// User model - matches backend structure exactly
 class User {
   final String id;
